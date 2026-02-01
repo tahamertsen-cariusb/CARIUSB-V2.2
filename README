@@ -1,0 +1,36 @@
+# 🚗 CARI - AI-Powered Car Visualization Platform
+
+> Transform your car with AI magic. Change rims, paint, bodykits, and generate cinematic videos — all in seconds.
+
+[🌐 Live Platform](https://cariusb.com) | [📊 Pitch Deck](assets/pitch-deck.pdf) | [📖 Documentation](docs/)
+
+## 🎯 What is CARI?
+
+AI-powered platform for car enthusiasts...
+
+## ✨ Features
+- Photo transformation
+- AI video generation
+- Community gallery
+- Freemium model
+
+## 🛠️ Tech Stack
+- Frontend: Next.js 14, React, TypeScript, Tailwind
+- Backend: n8n Workflows (automation)
+- Database: Supabase (PostgreSQL)
+- Storage: Cloudflare R2
+- AI: Replicate, Stability AI, Luma AI
+
+## 📸 Examples
+[Before/After örnekleri]
+
+## 💰 Business Model
+[Link to MONETIZATION.md]
+
+## 🏗️ Architecture
+[Diagram linki]
+
+## 📚 Documentation
+- [Project Overview](docs/PROJECT_OVERVIEW.md)
+- [Technical Architecture](docs/TECHNICAL_ARCHITECTURE.md)
+- [Monetization Strategy](docs/MONETIZATION.md)
