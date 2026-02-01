@@ -1,0 +1,455 @@
+Aşağıdaki rapor, üst yönetim/CEO seviyesinde sunum için hazırlanmış; muhasebe & finans departmanından çıkmış formatta yapılandırılmıştır. Tüm rakamsal kısımlar **varsayımsal fakat tutarlı bir finansal model** üzerinden yürütülmüştür. Gerçek hayatta canlıya alınmadan önce, gerçek maliyet ve kullanım verileriyle kalibre edilmesi önerilir.
+
+---
+
+## 1. Yönetici Özeti (Executive Summary)
+
+**Ürün:**
+Otomobil fotoğrafı üzerinden görsel modifikasyon (jant, boya, body kit, ortam değişimi vb.) ve bu çıktılardan otomatik kısa/uzun video üretimi yapan AI backend (SaaS olarak ticarileştirilecek).
+
+**Önerilen Monetizasyon Modeli:**
+
+* **Hybrid:**
+
+  * Aylık abonelik (Starter / Pro / Studio)
+  * Üzerine **kredi bazlı Pay-As-You-Go** (usage)
+* Tüm işlem fiyatlandırması **3581 kredi çarpanı** üzerine kurulu, kullanıcı açısından hesaplanamaz ve “profesyonel/sofistike” algısı yaratıyor.
+
+**Hedeflenen Finansal Yapı:**
+
+* Hedef brüt kâr marjı (Gross Margin): **%70–75 bandı**
+* LTV/CAC: **10x+ hedef**
+* CAC payback: **~2 ay**
+* NRR (Net Revenue Retention): **%120+ hedeflenebilir** (özellikle usage ile)
+
+Model, ürünün niteliği ve GPU tabanlı COGS yapısı göz önüne alındığında, yatırımcı ve CEO perspektifinden **yüksek marjlı, ölçeklenebilir ve defansif** bir SaaS profili ortaya koymaktadır.
+
+---
+
+## 2. Ürün & Gelir Modeli Özeti
+
+### 2.1. Ürün Özeti
+
+* Kullanıcı, aracının fotoğrafını yüklüyor.
+* Aracın:
+
+  * Renk, jant, body kit, ortam/arka plan, cam filmi, suspension, livery vb. görsel özellikleri değiştirilebiliyor.
+* Aynı veya revize edilmiş görsellerden:
+
+  * Kısa video (5–15 sn)
+  * Orta/uzun video (30 sn–2 dk) üretiliyor.
+
+### 2.2. Gelir Kalemleri
+
+1. **Abonelik Geliri (MRR/ARR):**
+
+   * Starter / Pro / Studio planları
+   * Her plan belirli miktarda kredi içeriyor.
+
+2. **Usage (Kredi) Geliri:**
+
+   * Plan içi krediler tükendiğinde ek kredi satın alımı
+   * Özellikle video ve uzun video tarafında yüksek marjlı ek gelir.
+
+3. **Premium Add-on’lar (İleri Aşama):**
+
+   * Uzun video (1–2 dk)
+   * 4K/8K upscaling
+   * Batch render
+   * White-label / kurumsal özellikler
+
+---
+
+## 3. Fiyatlandırma & Paket Yapısı
+
+### 3.1. Kredi Çarpanı ve İşlem Eşleşmesi
+
+Seçilen çarpan: **3581**
+
+Bu çarpan;
+
+* Kullanıcının işlem başına maliyeti anlamasını neredeyse imkânsız kılar.
+* “Yüksek teknoloji / profesyonel altyapı” algısı üretir.
+* Zaman içinde fiyat ayarlamalarını “kredi/işlem oranı” üzerinden sessizce yapmayı sağlar.
+
+**Örnek işlem → kredi eşleşmeleri (örnek model):**
+
+* 2K Foto: **3.581 kredi**
+* 4K Foto: **~4.800–5.000 kredi**
+* Kısa Video: **6.000–20.000+ kredi** (modele göre)
+* Uzun Video: **40.000–120.000+ kredi**
+
+Bu mapping, **COGS’ı (GPU maliyetleri)** koruyacak şekilde, fiyatlandırma tarafında yeterli brüt marjı bırakacak şekilde tasarlanmalıdır.
+
+> Not: Buradaki sayılar prensip modeli içindir; canlı ortamda gerçek inference maliyetlere göre kalibre edilecektir.
+
+---
+
+### 3.2. Abonelik Planları
+
+**Para birimi: USD (maliyet tarafı USD olduğu için finansal model USD bazlı kurgulanmıştır.)**
+
+#### Starter Plan
+
+* Fiyat: **12 USD / ay**
+* Kredi: **75.000 kredi / ay**
+* Hedef kullanıcı: Hobi kullanıcıları, düşük hacimli içerik üreticiler
+* Tipik kullanım varsayımı:
+
+  * ~12 foto + 1 kısa video / ay
+
+#### Pro Plan
+
+* Fiyat: **39 USD / ay**
+* Kredi: **300.000 kredi / ay**
+* Hedef kullanıcı: Otomotiv influencer’ları, aktif içerik üreticiler
+* Tipik kullanım varsayımı:
+
+  * ~60 foto + 6 video / ay
+
+#### Studio Plan
+
+* Fiyat: **149 USD / ay**
+* Kredi: **1.250.000 kredi / ay**
+* Hedef kullanıcı:
+
+  * Galeriler, auto dealers
+  * Detailing / kart koruma, bodyshop, tuning atölyeleri
+* Tipik kullanım varsayımı:
+
+  * ~300 foto + 18 video / ay
+
+---
+
+### 3.3. Usage (Kredi Paketleri)
+
+Aboneliğe ek olarak kredi satışı:
+
+| Paket  | Kredi     | Fiyat (USD) | Hedef             |
+| ------ | --------- | ----------- | ----------------- |
+| Small  | 50.000    | 9 USD       | Starter upsell    |
+| Medium | 150.000   | 19 USD      | En popüler        |
+| Large  | 500.000   | 49 USD      | Pro power user    |
+| Mega   | 1.500.000 | 119 USD     | Studio / kurumsal |
+
+Bu yapı, **ARPU artışı ve NRR %120+** için kritik rol oynar.
+
+---
+
+## 4. Unit Economics & Kârlılık Analizi
+
+Aşağıdaki bölüm, finansal modelleme açısından CEO’ya net resim sunmak için **konservatif ve yuvarlanmış** varsayımlar içerir.
+
+### 4.1. Varsayılan Birim Maliyetler (COGS)
+
+* Fotoğraf başına ortalama GPU maliyeti: **0,10 USD**
+* Video başına ortalama GPU maliyeti: **0,60 USD**
+  (Farklı modellerin ağırlıklı ortalaması alınmıştır.)
+
+Uzun videolar için maliyet çok daha yüksek olacaktır; burada basitlik için:
+
+* Uzun video maliyeti: modelin ileri fazında ayrıca detaylandırılacaktır, fakat fiyatlama premium add-on olarak tasarlanmakta, zarar riski bırakılmamaktadır.
+
+---
+
+### 4.2. Plan Bazında Ortalama COGS ve Brüt Marj
+
+**Starter Plan (12 USD / ay)**
+
+* 12 foto × 0,10 = 1,20
+* 1 video × 0,60 = 0,60
+* Toplam COGS ≈ **1,80 USD**
+* Brüt kâr: 12 – 1,8 = **10,2 USD**
+* **Brüt Marj ≈ %85**
+
+---
+
+**Pro Plan (39 USD / ay)**
+
+* 60 foto × 0,10 = 6,00
+* 6 video × 0,60 = 3,60
+* Toplam COGS ≈ **9,60 USD**
+* Brüt kâr: 39 – 9,6 = **29,4 USD**
+* **Brüt Marj ≈ %75**
+
+---
+
+**Studio Plan (149 USD / ay)**
+
+* 300 foto × 0,10 = 30,00
+* 18 video × 0,60 = 10,80
+* Toplam COGS ≈ **40,80 USD**
+* Brüt kâr: 149 – 40,8 ≈ **108,2 USD**
+* **Brüt Marj ≈ %73**
+
+---
+
+### 4.3. Portföy Bazlı Brüt Marj (Örnek 1.000 Ücretli Kullanıcı)
+
+**Varsayım:**
+
+* 1.000 ücretli kullanıcı dağılımı:
+
+  * %60 Starter → 600 kullanıcı
+  * %30 Pro → 300 kullanıcı
+  * %10 Studio → 100 kullanıcı
+
+**MRR Hesabı:**
+
+* Starter: 600 × 12 = 7.200
+* Pro: 300 × 39 = 11.700
+* Studio: 100 × 149 = 14.900
+
+**Toplam MRR:**
+
+> **MRR ≈ 33.800 USD**
+
+**Yıllık Tekrarlayan Gelir (ARR):**
+
+> **ARR ≈ 405.600 USD**
+
+**Toplam COGS:**
+
+* Starter COGS: 600 × 1,8 = 1.080
+* Pro COGS: 300 × 9,6 = 2.880
+* Studio COGS: 100 × 40,8 = 4.080
+* Toplam COGS ≈ **8.040 USD**
+
+**Toplam Brüt Kâr:**
+
+> 33.800 – 8.040 ≈ **25.760 USD / ay**
+
+**Portföy Bazlı Brüt Marj:**
+
+> 25.760 / 33.800 ≈ **%76**
+
+Bu oran, GPU bazlı AI SaaS için oldukça sağlıklı bir brüt kâr marjıdır.
+
+---
+
+### 4.4. Usage Geliri Etkisi
+
+**Varsayım:**
+
+* 1.000 ücretli kullanıcının %30’u (300 kullanıcı) ek kredi satın alıyor.
+* Kişi başı ortalama usage harcaması: **20 USD / ay**
+
+**Ek Usage MRR:**
+
+* 300 × 20 = **6.000 USD / ay**
+
+**Usage COGS (konservatif, gelir bazında %30 COGS):**
+
+* 6.000 × 0,30 = **1.800 USD**
+
+**Yeni Toplam MRR:**
+
+* 33.800 + 6.000 = **39.800 USD**
+
+**Yeni Toplam COGS:**
+
+* 8.040 + 1.800 = **9.840 USD**
+
+**Yeni Toplam Brüt Kâr:**
+
+* 39.800 – 9.840 = **29.960 USD / ay**
+
+**Yeni Brüt Marj:**
+
+* 29.960 / 39.800 ≈ **%75,3**
+
+Sonuç: Usage eklenmesine rağmen brüt marj hala **%75 bandında** korunabilmektedir. Bu, modelin ölçeklendikçe de kârlı kalacağının güçlü bir işaretidir.
+
+---
+
+## 5. LTV, CAC, ROI ve Payback Analizi
+
+### 5.1. ARPU (Average Revenue per User)
+
+Önceki senaryoda (1.000 kullanıcı):
+
+* Toplam MRR ≈ 39.800 USD
+* Kullanıcı sayısı = 1.000
+
+> **ARPU ≈ 39,8 USD / ay**
+
+### 5.2. LTV (Lifetime Value)
+
+Formül (SaaS standardı):
+
+> LTV = ARPU × Brüt Marj / Aylık Churn
+
+Varsayım:
+
+* Brüt Marj ≈ %75
+* Aylık churn: **%3** (iyi ürün/kitle uyumu hedefleniyor)
+
+Hesap:
+
+* ARPU ≈ 39,8
+* Marj ≈ 0,75
+* Churn ≈ 0,03
+
+> LTV ≈ 39,8 × 0,75 / 0,03 ≈ **~1.000 USD**
+
+Bu, kullanıcı başına **4 haneli USD LTV** gösteren son derece güçlü bir unit economics resmidir.
+
+---
+
+### 5.3. CAC ve LTV/CAC
+
+Varsayımsal CAC senaryoları:
+
+* Senaryo A: CAC = 40 USD
+* Senaryo B: CAC = 60 USD
+* Senaryo C: CAC = 80 USD
+
+**LTV/CAC oranları:**
+
+* 40 USD CAC → LTV/CAC ≈ 25x
+* 60 USD CAC → LTV/CAC ≈ 17x
+* 80 USD CAC → LTV/CAC ≈ 12,5x
+
+SaaS’ta genel kabul:
+**LTV/CAC ≥ 3x iyi**, ≥5x çok iyi, **10x+ exceptional** olarak değerlendirilir.
+Bu modelde makul CAC değerleriyle bile **fazlasıyla yüksek** LTV/CAC oranı görülmektedir.
+
+---
+
+### 5.4. CAC Payback Süresi
+
+Formül:
+
+> Payback (ay) = CAC / (ARPU × Brüt Marj)
+
+ARPU ≈ 39,8
+Marj ≈ 0,75
+
+Örnekler:
+
+* CAC = 40 → Payback ≈ 1,3 ay
+* CAC = 60 → Payback ≈ 2,0 ay
+* CAC = 80 → Payback ≈ 2,7 ay
+
+Sonuç:
+**2–3 ay bandında CAC geri dönüş süresi**, ölçeklenebilir büyüme için son derece sağlıklıdır.
+
+---
+
+## 6. MRR & ARR Büyüme Senaryoları
+
+Aynı kullanıcı dağılımını (60% Starter, 30% Pro, 10% Studio) koruduğumuzu varsayalım.
+
+### 6.1. 100 Ücretli Kullanıcı
+
+* MRR ≈ 3.380 USD (usage hariç)
+* ARR ≈ 40.560 USD
+
+### 6.2. 500 Ücretli Kullanıcı
+
+* MRR ≈ 16.900 USD (usage hariç)
+* ARR ≈ 202.800 USD
+
+### 6.3. 1.000 Ücretli Kullanıcı
+
+* MRR ≈ 33.800 USD (usage hariç)
+* ARR ≈ 405.600 USD
+
+Usage ek gelirleri ve long video add-on’lar devreye alındığında, bu rakamlar yukarı yönlü revize edilebilir.
+
+---
+
+## 7. Riskler & Kontrol Mekanizmaları
+
+### Ana Riskler
+
+1. **Video ve özellikle uzun video GPU maliyetlerinin beklenenden yüksek seyretmesi.**
+
+   * Çözüm:
+
+     * Uzun videoları her zaman **yüksek kredi tüketen premium add-on** olarak konumlandırmak.
+     * Kullanım verilerine göre kredi-işlem mapping’ini düzenli optimize etmek.
+
+2. **Free/Starter segmentinde sınırsız veya çok düşük maliyetli aşırı kullanım riski.**
+
+   * Çözüm:
+
+     * Net kredi limitleri
+     * Free planda sadece düşük çözünürlük ve sınırlı adet
+
+3. **FX riski (maliyet USD, gelir TL ağırlıklı olursa).**
+
+   * Çözüm:
+
+     * Fiyatlandırmayı USD bazlı kurgulayıp TL tahsilatta düzenli FX güncellemesi
+     * Kurumsal müşteriler için USD kontratları
+
+4. **İlk fazda gerçek kullanım ile varsayılan model arasındaki sapma.**
+
+   * Çözüm:
+
+     * İlk 2–3 ayı “beta monetization” fazı olarak tanımlayıp
+     * Kullanım istatistiklerine göre kredi mapping ve fiyat revizyonu
+
+---
+
+## 8. Yol Haritası & Öneriler
+
+### Kısa Vadeli (0–3 Ay)
+
+1. **Fiyatlandırma & kredi mimarisinin ürün tarafına uygulanması**
+
+   * 3 paket + usage paketleri canlıya alınmalı.
+2. **Temel analitik altyapı**
+
+   * Kullanıcı başı foto/video sayısı, kredi tüketimi, GPU dakikası gibi metriklerin loglanması.
+3. **Soft Launch**
+
+   * İlk kullanıcı cohort’ları ile gerçek kullanım verisi toplanması.
+
+### Orta Vadeli (3–9 Ay)
+
+1. **Fiyat & kredi calibration**
+
+   * Gerçek COGS ve kullanım verisine göre kredi-işlem mapping optimizasyonu.
+2. **NRR artırma çalışmaları**
+
+   * Özellikle Pro ve Studio kullanıcılarında usage upsell odaklı in-app nudging.
+3. **Uzun video & premium özelliklerin ürünleştirilmesi**
+
+   * Premium kredi tüketimi ile yüksek marjlı ek gelir oluşturma.
+
+### Uzun Vadeli (9–24 Ay)
+
+1. **Kurumsal Studio/Enterprise teklifleri**
+
+   * Özel SLA, account management, white-label video şablonları.
+2. **Global pazara açılma**
+
+   * USD bazlı fiyatlandırma ile döviz geliri.
+3. **Yatırım/Exit hazırlığı (opsiyonel)**
+
+   * MRR, ARR, LTV/CAC, NRR gibi metriklerin yatırımcı raporlama formatında standardize edilmesi.
+
+---
+
+## 9. Sonuç
+
+* Önerilen **Subscription + Kredi Bazlı Usage** yapısı, GPU maliyeti yüksek AI video/foto SaaS’ı için hem **finansal açıdan güvenli**, hem de **davranışsal açıdan yüksek gelir üreten** bir model sunmaktadır.
+* 3581 çarpanına dayalı kredi sistemi, kullanıcı tarafında fiyat algısını yönetirken, şirket tarafında **yüksek brüt marj, hızlı CAC geri dönüşü ve güçlü LTV/CAC oranları** yaratmaktadır.
+* Konservatif varsayımlarla dahi:
+
+  * Brüt marj: **%70–75**
+  * LTV: **~1.000 USD / kullanıcı**
+  * CAC payback: **≈2 ay**
+  * LTV/CAC: **10x+ bandında** mümkündür.
+
+Bu yapı, CEO perspektifinden bakıldığında;
+**ölçeklenebilir, yüksek marjlı, yatırımcıya açık ve defansif bir SaaS iş modeli** sunmaktadır.
+
+İstersen bir sonraki adımda bu raporu:
+
+* Slide formatında (başlık + bullet’lı),
+* veya yatırımcı deck’ine entegre edilebilecek formatta,
+
+yeniden paketleyebilirim.
