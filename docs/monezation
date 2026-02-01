@@ -1,6 +1,3 @@
-Aşağıdaki rapor, üst yönetim/CEO seviyesinde sunum için hazırlanmış; muhasebe & finans departmanından çıkmış formatta yapılandırılmıştır. Tüm rakamsal kısımlar **varsayımsal fakat tutarlı bir finansal model** üzerinden yürütülmüştür. Gerçek hayatta canlıya alınmadan önce, gerçek maliyet ve kullanım verileriyle kalibre edilmesi önerilir.
-
----
 
 ## 1. Yönetici Özeti (Executive Summary)
 
@@ -444,12 +441,4 @@ Usage ek gelirleri ve long video add-on’lar devreye alındığında, bu rakaml
   * CAC payback: **≈2 ay**
   * LTV/CAC: **10x+ bandında** mümkündür.
 
-Bu yapı, CEO perspektifinden bakıldığında;
-**ölçeklenebilir, yüksek marjlı, yatırımcıya açık ve defansif bir SaaS iş modeli** sunmaktadır.
 
-İstersen bir sonraki adımda bu raporu:
-
-* Slide formatında (başlık + bullet’lı),
-* veya yatırımcı deck’ine entegre edilebilecek formatta,
-
-yeniden paketleyebilirim.
