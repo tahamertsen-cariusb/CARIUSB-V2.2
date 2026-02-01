@@ -1,36 +1,42 @@
-# 🚗 CARI - AI-Powered Car Visualization Platform
+# 🏎️ CARIUSB-V2.2: The Future of Automotive Content Creation
 
-> Transform your car with AI magic. Change rims, paint, bodykits, and generate cinematic videos — all in seconds.
+CARIUSB, otomotiv dünyası için geliştirilmiş bir **Generative AI SaaS** çözümüdür. Statik araç fotoğraflarını, profesyonel rötuş ve yüksek kaliteli video içeriklerine dönüştürerek pazarlama maliyetlerini düşürür ve dönüşüm oranlarını artırır.
 
-[🌐 Live Platform](https://cariusb.com) | [📊 Pitch Deck](assets/pitch-deck.pdf) | [📖 Documentation](docs/)
+---
 
-## 🎯 What is CARI?
+## 💡 Neden CARIUSB? (Value Proposition)
 
-AI-powered platform for car enthusiasts...
+Otomotiv sektöründe görsel içerik üretimi pahalı (ekipman, mekan, zaman) ve zordur. CARIUSB:
+- **Maliyet Verimliliği:** Manuel rötüş süreçlerini %90 hızlandırır.
+- **Yüksek Kârlılık:** %75 Brüt Kâr Marjı ile çalışan, ölçeklenebilir bir GPU altyapısına sahiptir.
+- **Ölçeklenebilirlik:** Tek bir fotoğraftan 4K sınırsız varyasyon ve video üretimi sağlar.
+- otomobil meraklıları için bir hobi alanı gibidir, kafasında canlandırdığı hayali gerçeğe dönüştürür. 
+- otomobil nişindeki işletmeler için dakikalar içinde sonucu gösterir ve böylelikle direkt olarak satışa katkı sunar. 
 
-## ✨ Features
-- Photo transformation
-- AI video generation
-- Community gallery
-- Freemium model
+---
 
-## 🛠️ Tech Stack
-- Frontend: Next.js 14, React, TypeScript, Tailwind
-- Backend: n8n Workflows (automation)
-- Database: Supabase (PostgreSQL)
-- Storage: Cloudflare R2
-- AI: Replicate, Stability AI, Luma AI
+## 💰 İş Modeli & Unit Economics (Investor Summary)
 
-## 📸 Examples
-[Before/After örnekleri]
+CARIUSB, finansal açıdan sürdürülebilir ve agresif büyümeye uygun bir yapıdadır:
+- **Monetizasyon:** Hibrit Model (Aylık Abonelik + Kredi Bazlı Usage).
+- **Psikolojik Fiyatlandırma:** 3581 kredi çarpanı ile optimize edilmiş kullanıcı algısı.
+- **Key Metrics:** - **LTV/CAC:** 10x+ (Target).
+  - **Payback Period:** ~2 Ay.
+  - **Gross Margin:** %70-75 bandı.
 
-## 💰 Business Model
-[Link to MONETIZATION.md]
+---
 
-## 🏗️ Architecture
-[Diagram linki]
+## 🛠️ Teknik Ekosistem & Otomasyon
 
-## 📚 Documentation
-- [Project Overview](docs/PROJECT_OVERVIEW.md)
-- [Technical Architecture](docs/TECHNICAL_ARCHITECTURE.md)
-- [Monetization Strategy](docs/MONETIZATION.md)
+Proje, düşük maliyetli ve yüksek verimli bir otomasyon katmanı üzerine kuruludur:
+- **Workflow Automation:** n8n tabanlı modüler JSON workflow yapıları.
+- **AI Core:** Profesyonel otomotiv görsel diliyle eğitilmiş özel Prompt Engine ve GPU inference hattı.
+- **Architecture:** Asenkron işlem takibi (Job-ID tabanlı) ve ölçeklenebilir backend.
+
+---
+
+## 📅 Yol Haritası (Roadmap)
+- [x] **Q1 2024:** Core AI Engine & n8n Workflow Entegrasyonu.
+- [ ] **Q2 2024:** Beta Launch & Kredi Mapping Optimizasyonu.
+- [ ] **Q3 2024:** Kurumsal (Studio/Enterprise) White-label çözümlerin yayına alınması.
+- [ ] **Q4 2024:** Global pazara açılma ve USD bazlı genişleme.
