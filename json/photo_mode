@@ -1,0 +1,1497 @@
+{
+  "name": "CARIUSB Photo Gen2",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional automotive scene designer.\n\nYour task is to generate a BACKGROUND SCENE PROMPT in the exact structured format below, based on the user input.\n\nUser Input:\n{{ $json.instructions.environment }}\n\nYou MUST output in the following exact structure:\n\nRole: Professional Automotive Retoucher.\n\nTask:\nReplace the background scene.\n\nInstructions:\n1. Describe ONLY the environment and scene.\n2. The scene must be realistic, physically plausible, and suitable for a driving or parking environment.\n3. Match natural lighting logic for an outdoor or indoor environment.\n4. Maintain realistic depth, scale, horizon line, and ground plane logic.\n\nNegative Constraints:\n- Do NOT describe the car itself.\n- Do NOT include camera angles, lens types, focal lengths, or photography terms.\n- Do NOT include people unless explicitly requested.\n- Do NOT include fantasy elements unless explicitly requested.\n- Do NOT add motion blur, tilt, or extreme visual effects.\n\nOutput Rules:\n- The output MUST follow the exact format above.\n- The environment description MUST be included ONLY inside the Instructions section.\n- The entire output must remain clean, professional, and production-ready.\n- Do NOT add explanations or commentary.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -3888,
+        4464
+      ],
+      "id": "aa9b3ee8-066a-429c-b044-914a3b67b80c",
+      "name": "Environment Prompt",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ========================================\n// CLEAN NULL VALUES - PRODUCTION READY\n// ========================================\n\n/**\n * Recursively removes null, undefined, empty strings, and empty arrays/objects\n * EXCEPT keys containing 'prompt' (case-insensitive)\n * \n * @param {any} obj - Object to clean\n * @param {number} depth - Current recursion depth\n * @param {number} maxDepth - Maximum recursion depth (prevents stack overflow)\n * @returns {any} Cleaned object\n */\nfunction cleanNulls(obj, depth = 0, maxDepth = 10) {\n  \n  // 🔥 DEPTH LIMIT - Prevent infinite recursion\n  if (depth > maxDepth) {\n    console.warn(`⚠️ Max depth (${maxDepth}) reached at:`, Object.keys(obj || {}).slice(0, 5));\n    return obj;\n  }\n  \n  // 🔥 ARRAY HANDLING\n  if (Array.isArray(obj)) {\n    return obj\n      .map(item => cleanNulls(item, depth + 1, maxDepth))\n      .filter(item => {\n        // Remove null, undefined, empty string\n        if (item === null || item === undefined || item === '') {\n          return false;\n        }\n        \n        // Remove empty arrays\n        if (Array.isArray(item) && item.length === 0) {\n          return false;\n        }\n        \n        // Remove empty objects\n        if (typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length === 0) {\n          return false;\n        }\n        \n        return true;\n      });\n  }\n  \n  // 🔥 OBJECT HANDLING\n  if (typeof obj === 'object' && obj !== null) {\n    return Object.fromEntries(\n      Object.entries(obj)\n        // First, recursively clean nested values\n        .map(([key, value]) => [key, cleanNulls(value, depth + 1, maxDepth)])\n        \n        // Then filter out unwanted entries\n        .filter(([key, value]) => {\n          \n          // 🔥 CRITICAL: NEVER remove prompt keys\n          if (typeof key === 'string' && /prompt/i.test(key)) {\n            return true;\n          }\n          \n          // Remove null/undefined\n          if (value === null || value === undefined) {\n            return false;\n          }\n          \n          // Remove empty strings\n          if (value === '') {\n            return false;\n          }\n          \n          // Remove empty arrays\n          if (Array.isArray(value) && value.length === 0) {\n            return false;\n          }\n          \n          // Remove empty objects\n          if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) {\n            return false;\n          }\n          \n          return true;\n        })\n    );\n  }\n  \n  // 🔥 PRIMITIVE VALUES - Return as-is\n  return obj;\n}\n\n// ===============================\n// 🔥 EXECUTE CLEANING\n// ===============================\n\nconst originalKeys = Object.keys($json || {}).length;\nconst cleaned = cleanNulls($json);\nconst cleanedKeys = Object.keys(cleaned || {}).length;\n\nconsole.log(`🧹 Cleaned payload:`);\nconsole.log(`   - Original keys: ${originalKeys}`);\nconsole.log(`   - Cleaned keys: ${cleanedKeys}`);\nconsole.log(`   - Removed: ${originalKeys - cleanedKeys} keys`);\n\nreturn [{ json: cleaned }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5024,
+        5024
+      ],
+      "id": "060c773f-9cd6-4444-a9db-58474bf6bae0",
+      "name": "Clean Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// ⚙️ CONFIGURATION: PIPELINE RULES (PRO MODE)\n// ============================================================\n\n// MODE PRIORITY ORDER (UNCHANGED)\nconst MODE_PRIORITIES = {\n  bodykit: 10,\n  suspension: 20,\n  rim: 30,\n  paint: 40,\n  livery: 50,\n  tint: 60,\n  multicars: 70,\n  insert_person: 80,\n  environment: 90\n};\n\n// ============================================================\n// 🚀 MAIN LOGIC\n// ============================================================\n\nconst input = $json.body || $json;\n\n// ------------------------------------------------------------\n// 1. SOURCE IMAGE VALIDATION\n// ------------------------------------------------------------\n\nconst currentImage = input.sourceImage || input.currentImage;\n\nif (!currentImage || typeof currentImage !== 'string') {\n  throw new Error(\"❌ CRITICAL: 'sourceImage' eksik veya hatalı.\");\n}\n\n// ------------------------------------------------------------\n// 2. BUILD & SORT PIPELINE STEPS (CANONICAL MODES)\n// ------------------------------------------------------------\n\nconst inputModes = Array.isArray(input.modes) ? input.modes : [];\n\nconst steps = inputModes\n  .map(mode => ({\n    mode,\n    priority: MODE_PRIORITIES[mode] ?? 999\n  }))\n  .sort((a, b) => a.priority - b.priority)\n  .map(item => item.mode);\n\n// ------------------------------------------------------------\n// 3. COLLECT PAYLOAD DATA (NEW NORMALIZED MODEL)\n// ------------------------------------------------------------\n\nconst images = input.images || {};\nconst instructions = input.instructions || {};\n\n// ------------------------------------------------------------\n// 4. FINAL OUTPUT (PURE PIPELINE STATE)\n// ------------------------------------------------------------\n\nconsole.log(\"🎬 INITIALIZE PIPELINE\");\nconsole.log(`   Steps: ${steps.join(', ')}`);\nconsole.log(`   Total Rounds: ${steps.length}`);\n\nreturn {\n  json: {\n    // FLOW CONTROL\n    flow_status: \"process\",\n\n    // IMAGE STATE\n    currentImage,\n\n    // PIPELINE PLAN (STATIC)\n    pipeline: {\n      steps,\n      totalRounds: steps.length\n    },\n\n    // NORMALIZED PAYLOAD\n    images,\n    instructions,\n\n    // METADATA (PASS-THROUGH)\n    metadata: input.metadata || {\n      userId: input.userId,\n      projectId: input.projectId,\n      plan: input.plan,\n      resolution: input.resolution,\n      aspectRatio: input.aspect_ratio\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4800,
+        5024
+      ],
+      "id": "cd4aac31-3e04-48b0-8565-88d65c5a7c83",
+      "name": "Init Pipeline"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// 🧠 LOOP CONTROLLER (FINAL – PURE PASS-THROUGH + DECISION)\n// ============================================================\n\nconst input = $json;\n\n// ------------------------------------------------------------\n// 1. READ PIPELINE PLAN\n// ------------------------------------------------------------\n\nconst pipeline = input.pipeline || {};\nconst steps = pipeline.steps || [];\nconst totalRounds = pipeline.totalRounds || 0;\n\n// ------------------------------------------------------------\n// 2. READ CURRENT INDEX (RUNTIME CURSOR)\n// ------------------------------------------------------------\n\nconst currentIndex = input.task?.index ?? 0;\n\n// ------------------------------------------------------------\n// 3. DONE CHECK\n// ------------------------------------------------------------\n\nif (currentIndex >= totalRounds || steps.length === 0) {\n  return {\n    json: {\n      ...input,\n      flow_status: \"done\",\n      resultUrl: input.currentImage\n    }\n  };\n}\n\n// ------------------------------------------------------------\n// 4. RESOLVE CURRENT STEP\n// ------------------------------------------------------------\n\nconst currentStep = steps[currentIndex];\n\n// ------------------------------------------------------------\n// 5. RESOLVE INSTRUCTION (GENERIC, NO GUESSING)\n// ------------------------------------------------------------\n\nconst activeInstruction =\n  input.instructions?.[currentStep] ?? \"\";\n\n// ------------------------------------------------------------\n// 6. OUTPUT (PASS-THROUGH + TASK ONLY)\n// ------------------------------------------------------------\n\nreturn {\n  json: {\n    // 🔁 EVERYTHING PASSES THROUGH UNCHANGED\n    ...input,\n\n    // 🔄 FLOW STATE\n    flow_status: \"process\",\n\n    // 🧠 RUNTIME TASK (ONLY RESPONSIBILITY)\n    task: {\n      index: currentIndex,\n      total: totalRounds,\n      step: currentStep,\n      progressLabel: `${currentIndex + 1}/${totalRounds}`,\n      prompt: activeInstruction\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4576,
+        5024
+      ],
+      "id": "f365490c-095e-4bd7-a6bd-b3cd9b68f4ae",
+      "name": "Loop Control"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bbd5ced1-ff91-4c48-91d5-4296bd395cc0",
+              "leftValue": "={{ $json.flow_status }}",
+              "rightValue": "process",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4384,
+        5024
+      ],
+      "id": "91437e1a-b3d8-4f70-853a-bf64478ca966",
+      "name": "Env Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "708d6215-d40d-4a7a-a1f2-c4cdc7af49c2",
+              "leftValue": "={{ $json.task.step }}",
+              "rightValue": "environment",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4128,
+        4816
+      ],
+      "id": "aa7d142d-2714-4438-a369-5a29d027d0d7",
+      "name": "Env Prompt"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -3824,
+        4688
+      ],
+      "id": "e3b63a30-0691-4a44-9828-080a749360a0",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "KF4vi4KQZyDxUwo0",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "modes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "mode",
+              "keyValue": "={{\n(() => {\n  const step =\n    $json.task?.step ??\n    $json.lastUpdate?.step;\n\n  if (!step) return null;\n\n  const images = $json.images || {};\n  const instructions = $json.instructions || {};\n\n  if (images[step]) return `${step}Image`;\n  if (instructions[step]) return `${step}Instruction`;\n  return step;\n})()\n}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3776,
+        4832
+      ],
+      "id": "1a72c906-e73c-4c0e-8fd4-a30d2c781eb6",
+      "name": "DB Prompts",
+      "credentials": {
+        "supabaseApi": {
+          "id": "EfCjgiZu4MblAWv2",
+          "name": "CARIUSB"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1ba25598-5029-4a32-975f-61af191f3417",
+              "name": "prompt_with_instruction",
+              "value": "={{\n  $json.prompt +\n($('State Checkpoint').item.json.instructions?.[$('State Checkpoint').item.json.task.step]) }} \n\n",
+              "type": "string"
+            },
+            {
+              "id": "3a5bac39-ea9d-42db-bc36-1aabd5728157",
+              "name": "selected_prompt_image",
+              "value": "={{$('State Checkpoint').item.json.images?.[$('State Checkpoint').item.json.task.step]}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3568,
+        4816
+      ],
+      "id": "bc63838f-efd9-4292-a446-2664fd893277",
+      "name": "Inject Prompt"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e60c83c7-95b3-43b3-986b-8bcdf4a4afe7",
+              "name": "currentPrompt",
+              "value": "={{ $json.text ?? $json.prompt_with_instruction }}",
+              "type": "string"
+            },
+            {
+              "id": "7e552cff-875e-475c-833a-e735e7cf4e71",
+              "name": "currentImage",
+              "value": "={{ $('Env Route').item.json.currentImage }}",
+              "type": "string"
+            },
+            {
+              "id": "b4e0def4-6aed-49dc-9deb-66babb49a603",
+              "name": "currentStep",
+              "value": "={{ $('Env Route').item.json.task.step }}",
+              "type": "string"
+            },
+            {
+              "id": "c082ef63-6b10-4e4a-8cd0-99b86a4d778f",
+              "name": "resolution",
+              "value": "={{ $('Env Route').item.json.metadata.resolution }}",
+              "type": "string"
+            },
+            {
+              "id": "f212acd3-228b-4749-a786-26cb39c18cae",
+              "name": "selectedPromptImage",
+              "value": "={{ $json.selected_prompt_image ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "b5c66577-842a-4b1c-b48a-a36059146a0d",
+              "name": "steps",
+              "value": "={{ $('Env Route').item.json.pipeline.steps }}",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3376,
+        4736
+      ],
+      "id": "30ffa26c-3c53-429f-93d2-4f7f8a02ee69",
+      "name": "Build Task"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    model: \"nano-banana-pro\",\n    callBackUrl: $execution.resumeUrl,\n    input: {\n      prompt: $json.currentPrompt,\n      aspect_ratio: \"auto\",\n      resolution: $json.resolution,\n      output_format: \"png\",\n      image_input: [$json.currentImage, $json.selectedPromptImage].filter(Boolean)\n    }\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3184,
+        4736
+      ],
+      "id": "f4152afa-d8e6-4bc6-9cc0-24292b8088ea",
+      "name": "Submit Job",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YTqkKSecINEhUcu2",
+          "name": "Kei.api Header Auth"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// 💾 UPDATE STATE (FINAL – MINIMAL, NEW STATE MODEL)\n// ============================================================\n\n// ------------------------------------------------------------\n// 1. GET PREVIOUS CLEAN CONTEXT\n// ------------------------------------------------------------\n\nlet context = {};\n\ntry {\n  // Canonical reference: state BEFORE render\n  context = $('Env Route').item.json;\n} catch (e) {\n  console.log(\"⚠️ Warning: 'Env Route' context not found, using current input.\");\n  context = $json;\n}\n\n// ------------------------------------------------------------\n// 2. PARSE RENDER RESPONSE (SAFE, MULTI-FORMAT)\n// ------------------------------------------------------------\n\nconst apiResponse = $json;\nlet newImage = null;\n\ntry {\n  const callbackBody = apiResponse.body || apiResponse;\n\n  // Callback format\n  if (callbackBody.data?.resultJson) {\n    const parsed = JSON.parse(callbackBody.data.resultJson);\n    if (parsed?.resultUrls?.length) {\n      newImage = parsed.resultUrls[0];\n    }\n  }\n  // Legacy / polling format\n  else if (apiResponse?.data?.resultJson) {\n    const parsed = JSON.parse(apiResponse.data.resultJson);\n    if (parsed?.resultUrls?.length) {\n      newImage = parsed.resultUrls[0];\n    }\n  }\n} catch (err) {\n  console.log(\"⚠️ Image parse failed, keeping previous image.\");\n}\n\n// ------------------------------------------------------------\n// 3. RESOLVE FINAL IMAGE (NON-DESTRUCTIVE)\n// ------------------------------------------------------------\n\nconst finalImage = newImage || context.currentImage;\n\n// ------------------------------------------------------------\n// 4. RETURN UPDATED STATE (PASS-THROUGH)\n// ------------------------------------------------------------\n\nreturn {\n  json: {\n    // Preserve entire previous state\n    ...context,\n\n    // Update only what this node owns\n    currentImage: finalImage,\n\n    // Optional observability\n    lastUpdate: {\n      step: context.task?.step ?? null,\n      imageUpdated: Boolean(newImage)\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2704,
+        4704
+      ],
+      "id": "4feddceb-63e5-4a9e-a280-d53b714da19b",
+      "name": "Update State"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// 🔄 UPDATE PIPELINE STATE (THE ITERATOR)\n// ============================================================\n\nconst previousState = $json;\n\n// 1. MEVCUT INDEX'İ OKU\n// Task objesinden index'i al, yoksa 0 kabul et.\nconst currentIndex = previousState.task?.index ?? 0;\n\n// 2. MATEMATİKSEL İŞLEM (INCREMENT)\n// Sadece 1 ekle.\nconst nextIndex = currentIndex + 1;\n\n// ============================================================\n// 📦 RETURN LOOP PAYLOAD\n// ============================================================\n\nreturn {\n  json: {\n    // 1. Önceki tüm veriyi (currentImage, images, metadata) koru\n    ...previousState,\n\n    // 2. Sadece TASK objesindeki Index'i güncelle\n    task: {\n      ...previousState.task, // Toplam tur sayısı vb. korunsun\n      index: nextIndex,      // ✅ Yeni Index\n      \n      // Opsiyonel: Kafa karışıklığını önlemek için eski promptu temizle\n      // (Loop Controller yenisini doldurana kadar boş kalsın)\n      prompt: null, \n      refImage: null,\n      step: \"pending_next_round\" \n    },\n\n    // 3. Debug/Audit için zaman damgası\n    updatedAt: new Date().toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2512,
+        4704
+      ],
+      "id": "5988b5ea-2749-4bc7-8c95-9034cdd654e2",
+      "name": "Advance Index"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9f9f96d4-50c5-46bf-b638-35e46224ab18",
+              "name": "body.metadata.jobId",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "7b018e42-f39f-4324-bd4d-3679dab96dca",
+              "name": "body.metadata.userId",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.userId }}",
+              "type": "string"
+            },
+            {
+              "id": "24f4c3d1-dc06-4de9-8386-824833e6288a",
+              "name": "body.metadata.projectId",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.projectId }}",
+              "type": "string"
+            },
+            {
+              "id": "b22638f9-fc8e-4ecb-a9bc-5f477c7203b1",
+              "name": "body.metadata.plan",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.plan }}",
+              "type": "string"
+            },
+            {
+              "id": "44ad4f69-7b1d-4284-9fce-f905dc85d8b6",
+              "name": "body.metadata.aspect_ratio",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.aspect_ratio }}",
+              "type": "string"
+            },
+            {
+              "id": "4d48412b-4883-48b0-b625-aead45c3b30f",
+              "name": "body.metadata.resolution",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.resolution }}",
+              "type": "string"
+            },
+            {
+              "id": "c5d1e02c-42fb-4539-ad8d-c290d9f69a91",
+              "name": "body.modes",
+              "value": "={{ $('Normalize Payload').first().json.body.modes }}",
+              "type": "string"
+            },
+            {
+              "id": "0fa6d7b2-c55d-4ce7-baf3-f7a39570623d",
+              "name": "resultImage",
+              "value": "={{ $json.currentImage }}",
+              "type": "string"
+            },
+            {
+              "id": "1202776a-7d9c-49b3-a423-638769fb9de7",
+              "name": "sourceImage",
+              "value": "={{ $('Normalize Payload').first().json.body.sourceImage }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3984,
+        5040
+      ],
+      "id": "b265a01d-07a7-4b22-b594-4e7561f3b776",
+      "name": "Assemble Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// 🧹 CLEANUP: EDIT FIELDS CANDIDATES vs FINAL RESULT\n// ============================================================\n\n// 1. EDIT FIELDS NODUNDAN VERİYİ ÇEK\nlet editFieldsData = {};\ntry {\n  // 'Edit Fields' nodunun ilk çıktısını alıyoruz\n  editFieldsData = $('Normalize Payload1').first().json;\n} catch (error) {\n  console.log(\"⚠️ Hata: 'Edit Fields' noduna ulaşılamadı.\");\n}\n\n// 2. SİLİNECEK ADAYLARI TOPLA (Sadece Edit Fields)\n// İsmi \"Image\" ile biten tüm alanları (SourceImage dahil) topluyoruz.\nconst candidates = [];\n\nObject.entries(editFieldsData).forEach(([key, value]) => {\n  // Key ismi \"Image\" ile bitiyor mu? (Örn: sourceImage, rimImage)\n  if (key.endsWith('Image')) {\n    \n    // Değer String ise\n    if (typeof value === 'string' && value.trim() !== '') {\n      candidates.push(value);\n    }\n    \n    // Değer Array ise (örn: multicarsImage)\n    else if (Array.isArray(value)) {\n      value.forEach(item => {\n        if (typeof item === 'string' && item.trim() !== '') {\n          candidates.push(item);\n        }\n      });\n    }\n  }\n});\n\n// 3. FINAL SONUCU BELİRLE (KORUNACAK TEK ŞEY)\nconst finalResult = $json.currentImage;\n\nconsole.log(`🛡️ PROTECTED FINAL: ${finalResult ? 'Yes' : 'No'}`);\nconsole.log(`🗑️ CANDIDATES FOUND: ${candidates.length}`);\n\n// 4. FİLTRELEME (KIYIM ZAMANI)\nconst imagesToDelete = candidates.filter(url => {\n  if (!url || typeof url !== 'string') return false;\n\n  // URL temizle (Query parametrelerini yok sayarak karşılaştır)\n  // Bu sayede token farkı yüzünden yanlış silme olmaz.\n  const cleanUrl = url.split('?')[0];\n  const cleanFinal = (finalResult || '').split('?')[0];\n\n  // 🚨 KRİTİK KONTROL: Final Resim ise SİLME!\n  if (cleanUrl === cleanFinal) {\n    console.log(`   ⏭️ Skipped Final Result: ${cleanUrl.substring(0, 30)}...`);\n    return false;\n  }\n\n  // Diğer her şey (SourceImage dahil) silinir.\n  return true;\n});\n\n// Çift kayıtları temizle\nconst uniqueImages = [...new Set(imagesToDelete)];\n\nconsole.log(`🗑️ FINAL DELETION LIST: ${uniqueImages.length} files`);\n\n// 5. ÇIKTI\nreturn uniqueImages.map(url => ({\n  json: {\n    url: url,\n    markedForDeletion: true\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4224,
+        5264
+      ],
+      "id": "ca544eac-5bec-4ba8-b04e-3692ddf23b23",
+      "name": "Filter Images"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -4000,
+        5264
+      ],
+      "id": "a4288b71-679a-40c2-8d4d-1d976949eeef",
+      "name": "Iterate Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2c071dd6-f34c-4ec6-9a0e-d103b33bc4b5",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "9c18b1d5-6fe3-439d-a4cd-c2f5f59b73fd",
+              "name": "error.code",
+              "value": "={{ $json.data?.state}}",
+              "type": "string"
+            },
+            {
+              "id": "c6b3391e-a3f0-4b75-b69b-d3750f473a43",
+              "name": "error_msg",
+              "value": "={{ $json.error?.message || $json.error?.description || 'Unexpected error occurred.' }}",
+              "type": "string"
+            },
+            {
+              "id": "26d7fb08-10d7-472b-a7ac-ae575c2d7096",
+              "name": "error.taskId",
+              "value": "={{ $json.data?.taskId}}",
+              "type": "string"
+            },
+            {
+              "id": "c496a03b-e749-40d9-a2c5-f8ea9f8972a9",
+              "name": "statusCode",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "948d8359-ffe7-42f8-b4e6-492b04368c09",
+              "name": "job_id",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.jobId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2288,
+        4592
+      ],
+      "id": "1c2f2322-ca1c-4475-99b8-a672ebb8c34a",
+      "name": "Build Error Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ERROR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -2048,
+        4784
+      ],
+      "id": "d8f65e3c-4b6b-4ab6-b114-2c349a5958b2",
+      "name": "Webhook Error Out"
+    },
+    {
+      "parameters": {
+        "sendTo": "tahamertsen@cariusb.com",
+        "subject": "CARIUSB PHOTO ERROR.",
+        "message": "ERROR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -2064,
+        4400
+      ],
+      "id": "bf6e8844-f29a-48ba-bc6a-ad43a9638176",
+      "name": "Error Log Mail",
+      "webhookId": "baaa8dee-3d72-4b24-8156-c5fd49faaa82",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YfP5IILHjzC1Vkim",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "MAIN BRANCH",
+        "height": 1056,
+        "width": 3248,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -5568,
+        4368
+      ],
+      "typeVersion": 1,
+      "id": "85e69532-aba7-4627-9a6f-64efe0fdfddf",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "ERROR BRANCH",
+        "height": 592,
+        "width": 448,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2320,
+        4368
+      ],
+      "typeVersion": 1,
+      "id": "e68b45a2-dfbe-4851-b82d-f84720c9804e",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "limitWaitTime": true,
+        "resumeAmount": 3.5,
+        "resumeUnit": "minutes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2912,
+        4720
+      ],
+      "id": "0e9319ee-b7a1-4955-82ff-ec6ab2d61b19",
+      "name": "Wait For Webhook",
+      "webhookId": "344d6cbf-cd93-4e16-8196-8332fadb7865",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "photo",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -5472,
+        5120
+      ],
+      "id": "c956022b-d35f-4c6a-93e0-f37b5250fe59",
+      "name": "Webhook",
+      "webhookId": "ba32f232-48a6-4ede-89b5-368a787cf746",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "dAycGUTIuYNDZkmx",
+          "name": "CARIUSB SECRET"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"beforeImage\": \"https://media-gateway-cariusb.tahamertsen.workers.dev/image/65924733-9779-487a-8645-6361709990ad\",\n  \"afterImage\": \"https://media-gateway-cariusb.tahamertsen.workers.dev/image/6ab719b9-b2d5-4fdd-94c5-dd39fe757fb8\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5040,
+        4784
+      ],
+      "id": "74622949-3a23-4f2e-a1e5-79b96cfac3e9",
+      "name": "Respond to Webhook",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "jobs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "jobid",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.metadata.jobId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "step",
+              "fieldValue": "processing"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -5024,
+        5216
+      ],
+      "id": "fb2798d9-d984-4c1e-820f-6787bc1912bb",
+      "name": "Update Job",
+      "credentials": {
+        "supabaseApi": {
+          "id": "EfCjgiZu4MblAWv2",
+          "name": "CARIUSB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://media-gateway-cariusb.tahamertsen.workers.dev/upload/image-url",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{$json.resultImage}}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3760,
+        5040
+      ],
+      "id": "34af3f5a-aa5a-4a1f-80b4-8129ee0f1574",
+      "name": "Cloudflare Put",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "jobs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "jobid",
+              "condition": "eq",
+              "keyValue": "={{ $('Assemble Result').item.json.body.metadata.jobId }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "step",
+              "fieldValue": "completed_n8n"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3312,
+        5280
+      ],
+      "id": "df6c63c4-1090-42b2-a7ce-6e97a6163bfe",
+      "name": "Update Job1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "EfCjgiZu4MblAWv2",
+          "name": "CARIUSB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "jobs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "jobid",
+              "condition": "eq",
+              "keyValue": "={{ $json.job_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "step",
+              "fieldValue": "failed"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.error_msg }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2064,
+        4592
+      ],
+      "id": "b7ffae91-db8d-48d4-aeaf-e93f20941af6",
+      "name": "Update Job2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "EfCjgiZu4MblAWv2",
+          "name": "CARIUSB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://broad-violet-3cb6.tahamertsen.workers.dev",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3760,
+        5248
+      ],
+      "id": "cfbb3cef-8056-447a-9e7f-a42bf3746ef3",
+      "name": "Cloudflare Delete",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "26308281-c3ea-496e-8bc2-44bb77c92a04",
+              "name": "body.metadata.jobId",
+              "value": "={{ $json.body.metadata.job_id }}",
+              "type": "string"
+            },
+            {
+              "id": "0a6e0028-7a56-4d7a-afea-b3e527b58e02",
+              "name": "body.metadata.userId",
+              "value": "={{ $json.body.metadata.user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "45efd57f-1c70-4d2e-8c92-48769c83467b",
+              "name": "body.metadata.projectId",
+              "value": "={{ $json.body.metadata.project_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c91c6060-2707-4a44-ba1a-d26d6b50febe",
+              "name": "body.metadata.plan",
+              "value": "={{ $json.body.metadata.plan }}",
+              "type": "string"
+            },
+            {
+              "id": "c1067b83-346b-4f07-a163-54ad7a4781ea",
+              "name": "body.metadata.aspect_ratio",
+              "value": "={{ $json.body.metadata.aspect_ratio }}",
+              "type": "string"
+            },
+            {
+              "id": "3f086a70-b424-4a0f-b017-a9cd6314ac2f",
+              "name": "body.metadata.resolution",
+              "value": "=1K",
+              "type": "string"
+            },
+            {
+              "id": "687ea1b6-96bf-4e4d-bea4-b53c04384fb4",
+              "name": "body.modes",
+              "value": "={{ $json.body.modes }}",
+              "type": "array"
+            },
+            {
+              "id": "d500585b-ff5d-470d-9fed-2f5b012050ca",
+              "name": "body.sourceImage",
+              "value": "={{ $json.body.source_image }}",
+              "type": "string"
+            },
+            {
+              "id": "394e4318-e720-46a0-8732-ff590a65486b",
+              "name": "body.images.paint",
+              "value": "={{ $json.body.images.paint}}",
+              "type": "string"
+            },
+            {
+              "id": "b01f0433-0a2f-4497-8f5e-b4c38f420a52",
+              "name": "body.images.rim",
+              "value": "={{ $json.body.images.rim }}",
+              "type": "string"
+            },
+            {
+              "id": "bce8e800-e541-47da-ae07-88072979b1ec",
+              "name": "body.images.bodykit",
+              "value": "={{ $json.body.images.bodykit }}",
+              "type": "string"
+            },
+            {
+              "id": "458ce224-e477-4f8a-8a78-af181aedf9f0",
+              "name": "body.images.livery",
+              "value": "={{ $json.body.images.livery }}",
+              "type": "string"
+            },
+            {
+              "id": "7476d3b4-3524-49bf-9ce1-d9b0fab27378",
+              "name": "body.images.insert_person",
+              "value": "={{$json.body.images.insert_person }}",
+              "type": "string"
+            },
+            {
+              "id": "78e0e194-bd9d-48ab-9025-0f479c5c576d",
+              "name": "body.images.multicars",
+              "value": "={{ $json.body.images.multicars }}",
+              "type": "array"
+            },
+            {
+              "id": "4db24292-86e3-424b-9206-a4398e3b64f1",
+              "name": "body.instructions.paint",
+              "value": "={{ $json.body.instructions.paint }}",
+              "type": "string"
+            },
+            {
+              "id": "72c876c7-f464-434b-abb9-575d0c1e08c9",
+              "name": "body.instructions.bodykit",
+              "value": "={{ $json.body.instructions.bodykit }}",
+              "type": "string"
+            },
+            {
+              "id": "e6652a77-2712-4554-978f-7867061cac20",
+              "name": "body.instructions.tint",
+              "value": "={{ $json.body.instructions.tint }}",
+              "type": "string"
+            },
+            {
+              "id": "a8a8d73c-453c-4ca2-8b61-8d32f01bd23b",
+              "name": "body.instructions.environment",
+              "value": "={{ $json.body.instructions.environment }}",
+              "type": "string"
+            },
+            {
+              "id": "8222019e-9942-4dc4-9b5e-d7493a74b8cc",
+              "name": "body.instructions.insert_person",
+              "value": "={{ $json.body.instructions.insert_person }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5248,
+        5120
+      ],
+      "id": "cbb07dbe-90ae-4589-9603-22e0575d0998",
+      "name": "Normalize Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://zhfoygasvpjtsngebahn.supabase.co/rest/v1/assets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "={{ $('Assemble Result').first().json.body.metadata.jobId }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $('Assemble Result').first().json.body.metadata.userId }}"
+            },
+            {
+              "name": "project_id",
+              "value": "={{ $('Assemble Result').first().json.body.metadata.projectId }}"
+            },
+            {
+              "name": "url",
+              "value": "=https://media-gateway-cariusb.tahamertsen.workers.dev/{{ $json.key }}"
+            },
+            {
+              "name": "plan",
+              "value": "={{ $('Normalize Payload').first().json.body.metadata.plan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3536,
+        5152
+      ],
+      "id": "7269b403-153c-45f8-920b-fc3c13d4d978",
+      "name": "Supabase Insert",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "oPqhkaoAeF2StKUi",
+          "name": "CARIUSB Header"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "53dbeec8-b12e-4812-b6f2-b72b5dec0b18",
+              "name": "flow_status",
+              "value": "={{ $json.flow_status }}",
+              "type": "string"
+            },
+            {
+              "id": "79050f61-b4cb-48ec-a843-623a74ae9d2e",
+              "name": "currentImage",
+              "value": "={{ $json.currentImage }}",
+              "type": "string"
+            },
+            {
+              "id": "d8c6cbb1-c191-42cd-94a7-a3d4089a7fe7",
+              "name": "pipeline.steps",
+              "value": "={{ $json.pipeline.steps }}",
+              "type": "array"
+            },
+            {
+              "id": "814c66a9-d27a-49c1-9d82-8b5fdeaf2d9d",
+              "name": "pipeline.totalRounds",
+              "value": "={{ $json.pipeline.totalRounds }}",
+              "type": "number"
+            },
+            {
+              "id": "c7eee674-ff55-4e74-af2a-9ceb29e1dd76",
+              "name": "images",
+              "value": "={{ $json.images }}",
+              "type": "object"
+            },
+            {
+              "id": "44f1e4ab-43dc-49ff-bf6a-c76c4ab21676",
+              "name": "instructions",
+              "value": "={{ $json.instructions }}",
+              "type": "object"
+            },
+            {
+              "id": "06eb4900-7236-46b0-844a-d313d4785211",
+              "name": "metadata.jobId",
+              "value": "={{ $json.metadata.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "8d8c0738-1551-455d-9073-7b6f9e894827",
+              "name": "metadata.userId",
+              "value": "={{ $json.metadata.userId }}",
+              "type": "string"
+            },
+            {
+              "id": "3aaec350-4521-4968-a4d7-c1d729c2e052",
+              "name": "metadata.projectId",
+              "value": "={{ $json.metadata.projectId }}",
+              "type": "string"
+            },
+            {
+              "id": "f59d3a22-88b0-453d-b36c-90c02e1b6d68",
+              "name": "metadata.plan",
+              "value": "={{ $json.metadata.plan }}",
+              "type": "string"
+            },
+            {
+              "id": "dd3dcc13-6d54-430a-8a09-766c4e33f64f",
+              "name": "metadata.aspect_ratio",
+              "value": "={{ $json.metadata.aspect_ratio }}",
+              "type": "string"
+            },
+            {
+              "id": "89a66523-6e89-4736-963a-1679b5ae3fdb",
+              "name": "metadata.resolution",
+              "value": "={{ $json.metadata.resolution }}",
+              "type": "string"
+            },
+            {
+              "id": "6316dfff-4041-47b7-bdd7-761f249861d8",
+              "name": "task.index",
+              "value": "={{ $json.task.index }}",
+              "type": "number"
+            },
+            {
+              "id": "b71a9a99-3ea0-4f14-8fb1-a0bb715570cb",
+              "name": "task.total",
+              "value": "={{ $json.task.total }}",
+              "type": "number"
+            },
+            {
+              "id": "2d784cd2-4ceb-4cf5-8395-33a23be8fbcd",
+              "name": "task.step",
+              "value": "={{ $json.task.step }}",
+              "type": "string"
+            },
+            {
+              "id": "73fbc8be-849a-43c2-9225-a0dbf675eeba",
+              "name": "task.progressLabel",
+              "value": "={{ $json.task.progressLabel }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3936,
+        4832
+      ],
+      "id": "58e27f9a-33d1-4f39-b578-d49b018ea7a9",
+      "name": "State Checkpoint"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"beforeImage\": \"{{ $('Assemble Result').first().json.sourceImage }}\",\n  \"afterImage\": \"https://media-gateway-cariusb.tahamertsen.workers.dev/{{ $json.key }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -3520,
+        4976
+      ],
+      "id": "e360f9db-c4c6-47da-ab08-6b2ff1880e20",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "tahamertsen.app.n8n.cloud",
+            "user-agent": "node",
+            "content-length": "469",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "*",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "5.176.58.164",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "TR",
+            "cf-ray": "9b8840d42245e67c-DUS",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "sec-fetch-mode": "cors",
+            "x-forwarded-for": "5.176.58.164, 172.69.109.16",
+            "x-forwarded-host": "tahamertsen.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-89-8567ddc79c-gsljl",
+            "x-is-trusted": "yes",
+            "x-real-ip": "5.176.58.164",
+            "x-webhook-signature": "ve63ruC2M5km3Ne2m2kiQ0N5AyCvCyLd"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "studio.photo.mode.activated",
+            "timestamp": "2026-01-04T05:14:34.680Z",
+            "source_image": "https://media-gateway-cariusb.tahamertsen.workers.dev/image/741cdd72-6b3d-42ca-9ac2-2415c3832174",
+            "modes": [
+              "paint"
+            ],
+            "instructions": {
+              "paint": "midnight purple 3"
+            },
+            "images": {},
+            "metadata": {
+              "job_id": "job_0f3ccc6a7e54",
+              "user_id": "85f95205-e058-4936-9455-db3c72ea2c4d",
+              "project_id": "44fc3f74-6ddf-482e-b714-904bed5563c4",
+              "plan": "free",
+              "aspect_ratio": "16:9",
+              "resolution": "1024x576"
+            }
+          },
+          "webhookUrl": "https://tahamertsen.app.n8n.cloud/webhook/photo",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Environment Prompt": {
+      "main": [
+        [
+          {
+            "node": "Build Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Payload": {
+      "main": [
+        [
+          {
+            "node": "Init Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Loop Control",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Control": {
+      "main": [
+        [
+          {
+            "node": "Env Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Env Route": {
+      "main": [
+        [
+          {
+            "node": "Env Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter Images",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Assemble Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Env Prompt": {
+      "main": [
+        [
+          {
+            "node": "Environment Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "State Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Environment Prompt",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB Prompts": {
+      "main": [
+        [
+          {
+            "node": "Inject Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inject Prompt": {
+      "main": [
+        [
+          {
+            "node": "Build Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task": {
+      "main": [
+        [
+          {
+            "node": "Submit Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Job": {
+      "main": [
+        [
+          {
+            "node": "Wait For Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update State": {
+      "main": [
+        [
+          {
+            "node": "Advance Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advance Index": {
+      "main": [
+        [
+          {
+            "node": "Loop Control",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Result": {
+      "main": [
+        [
+          {
+            "node": "Cloudflare Put",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Images": {
+      "main": [
+        [
+          {
+            "node": "Iterate Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iterate Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Cloudflare Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Error Out",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Error Log Mail",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Job2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job": {
+      "main": [
+        []
+      ]
+    },
+    "Cloudflare Put": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cloudflare Delete": {
+      "main": [
+        [
+          {
+            "node": "Iterate Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Update Job",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Clean Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Update Job1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "State Checkpoint": {
+      "main": [
+        [
+          {
+            "node": "DB Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "64d79b46-9cfd-4707-a29a-2f1d160b1791",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2fc6eabe08c8d1b9b05431928b1ad54f8d7edacf8161d7d4406f229c75dec1bc"
+  },
+  "id": "kSoFDjyVB2vf3mzV",
+  "tags": []
+}
